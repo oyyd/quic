@@ -269,6 +269,7 @@ class SocketAddress {
 
   void Copy(const sockaddr* source) {
     memcpy(&address_, source, GetAddressLen(source));
+    ZeroSaLen();
   }
 
   void Set(uv_udp_t* handle) {
@@ -281,6 +282,7 @@ class SocketAddress {
 
   void Update(const ngtcp2_addr* addr) {
     memcpy(&address_, addr->addr, addr->addrlen);
+    ZeroSaLen();
   }
 
   const sockaddr* operator*() const {
@@ -298,6 +300,17 @@ class SocketAddress {
   int GetFamily() { return address_.ss_family; }
 
  private:
+  void ZeroSaLen() {
+    uint8_t* addr = reinterpret_cast<uint8_t*>(&address_);
+    // The first byte of sockaddr might not be zero on FreeBSD and macOS and
+    // which depends on how we get sockaddr from uv. We make sure it's zero
+    // here so that ngtcp2 won't drop packets due to comparations of
+    // "ngtcp2_addr"s by bytes.
+    if (addr[0]) {
+      addr[0] = 0;
+    }
+  }
+
   sockaddr_storage address_;
 };
 
