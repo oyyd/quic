@@ -2800,7 +2800,11 @@ bool QuicClientSession::SendConnectionClose() {
   sendbuf_.Cancel();
   QuicError error = GetLastError();
 
-  if (!WritePackets("client connection close - write packets"))
+  // If we're not already in the closing period,
+  // first attempt to write any pending packets, then
+  // start the closing period.
+  if (!IsInClosingPeriod() &&
+    !WritePackets("client connection close - write packets"))
     return false;
 
   ssize_t nwrite =
@@ -3222,8 +3226,8 @@ int QuicSession::OnSelectPreferredAddress(
     void* user_data) {
   QuicSession* session = static_cast<QuicSession*>(user_data);
   QuicSession::Ngtcp2CallbackScope callback_scope(session);
-  return session->SelectPreferredAddress(dest, paddr) ?
-      0 : NGTCP2_ERR_CALLBACK_FAILURE;
+  session->SelectPreferredAddress(dest, paddr);
+  return 0;
 }
 
 // Called by ngtcp2 when a stream has been closed for any reason.
