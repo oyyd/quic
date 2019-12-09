@@ -15,11 +15,12 @@ namespace node {
 class SocketAddress {
  public:
   struct Hash {
-    inline size_t operator()(const sockaddr* addr) const;
+    inline size_t operator()(const sockaddr& addr) const;
+    inline size_t operator()(const sockaddr_storage& addr_storage) const;
   };
 
   struct Compare {
-    inline bool operator()(const sockaddr* laddr, const sockaddr* raddr) const;
+    inline bool operator()(const sockaddr_storage& laddr, const sockaddr_storage& raddr) const;
   };
 
   inline static bool is_numeric_host(const char* hostname);
@@ -55,6 +56,8 @@ class SocketAddress {
   inline SocketAddress& operator=(const SocketAddress& other);
 
   inline const sockaddr* operator*() const;
+
+  inline const sockaddr_storage* GetSockaddrStorage() const;
 
   inline size_t GetLength() const;
 

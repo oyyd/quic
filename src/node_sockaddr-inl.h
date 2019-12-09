@@ -25,7 +25,7 @@ inline void hash_combine(size_t* seed, const T& value, Args... rest) {
 }
 }  // namespace
 
-size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
+static size_t GetHash(const sockaddr* addr) {
   size_t hash = 0;
   switch (addr->sa_family) {
     case AF_INET: {
@@ -48,11 +48,20 @@ size_t SocketAddress::Hash::operator()(const sockaddr* addr) const {
   return hash;
 }
 
+size_t SocketAddress::Hash::operator()(const sockaddr& addr) const {
+  return GetHash(&addr);
+}
+
+size_t SocketAddress::Hash::operator()(const sockaddr_storage& addr_storage) const {
+  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&addr_storage);
+  return GetHash(addr);
+}
+
 bool SocketAddress::Compare::operator()(
-    const sockaddr* laddr,
-    const sockaddr* raddr) const {
-  CHECK(laddr->sa_family == AF_INET || laddr->sa_family == AF_INET6);
-  return memcmp(laddr, raddr, GetLength(laddr)) == 0;
+    const sockaddr_storage& laddr,
+    const sockaddr_storage& raddr) const {
+  CHECK(laddr.ss_family == AF_INET || laddr.ss_family == AF_INET6);
+  return memcmp(&laddr, &raddr, GetLength(&laddr)) == 0;
 }
 
 bool SocketAddress::is_numeric_host(const char* hostname) {
@@ -144,6 +153,10 @@ SocketAddress& SocketAddress::operator=(const SocketAddress& addr) {
 
 const sockaddr* SocketAddress::operator*() const {
   return reinterpret_cast<const sockaddr*>(&address_);
+}
+
+const sockaddr_storage* SocketAddress::GetSockaddrStorage() const {
+  return &address_;
 }
 
 size_t SocketAddress::GetLength() const {

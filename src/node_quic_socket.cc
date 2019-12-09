@@ -247,7 +247,7 @@ void QuicSocket::AddSession(
     const QuicCID& cid,
     BaseObjectPtr<QuicSession> session) {
   sessions_[cid.ToStr()] = session;
-  IncrementSocketAddressCounter(**session->GetRemoteAddress());
+  IncrementSocketAddressCounter(session->GetRemoteAddress()->GetSockaddrStorage());
   IncrementSocketStat(
       1, &socket_stats_,
       session->IsServer() ?
@@ -485,7 +485,7 @@ int QuicSocket::ReceiveStop() {
   return udp_->RecvStop();
 }
 
-void QuicSocket::RemoveSession(const QuicCID& cid, const sockaddr* addr) {
+void QuicSocket::RemoveSession(const QuicCID& cid, const sockaddr_storage* addr) {
   sessions_.erase(cid.ToStr());
   DecrementSocketAddressCounter(addr);
 }
@@ -659,7 +659,7 @@ namespace {
 void QuicSocket::SetValidatedAddress(const sockaddr* addr) {
   if (IsOptionSet(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     // Remove the oldest item if we've hit the LRU limit
-    validated_addrs_.push_back(addr_hash(addr));
+    validated_addrs_.push_back(addr_hash(*addr));
     if (validated_addrs_.size() > MAX_VALIDATE_ADDRESS_LRU)
       validated_addrs_.pop_front();
   }
@@ -669,7 +669,7 @@ bool QuicSocket::IsValidatedAddress(const sockaddr* addr) const {
   if (IsOptionSet(QUICSOCKET_OPTIONS_VALIDATE_ADDRESS_LRU)) {
     auto res = std::find(std::begin(validated_addrs_),
                          std::end(validated_addrs_),
-                         addr_hash(addr));
+                         addr_hash(*addr));
     return res != std::end(validated_addrs_);
   }
   return false;
@@ -721,9 +721,13 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   // Check to see if the number of connections for this peer has been exceeded.
   // If the count has been exceeded, shutdown the connection immediately
   // after the initial keys are installed.
-  if (GetCurrentSocketAddressCounter(addr) >= max_connections_per_host_) {
-    Debug(this, "Connection count for address exceeded");
-    initial_connection_close = NGTCP2_SERVER_BUSY;
+  {
+    sockaddr_storage storage;
+    memcpy(&storage, addr, SocketAddress::GetLength(addr));
+    if (GetCurrentSocketAddressCounter(&storage) >= max_connections_per_host_) {
+      Debug(this, "Connection count for address exceeded");
+      initial_connection_close = NGTCP2_SERVER_BUSY;
+    }
   }
 
   // QUIC has address validation built in to the handshake but allows for
@@ -782,22 +786,22 @@ BaseObjectPtr<QuicSession> QuicSocket::AcceptInitialPacket(
   return session;
 }
 
-void QuicSocket::IncrementSocketAddressCounter(const sockaddr* addr) {
-  addr_counts_[addr]++;
+void QuicSocket::IncrementSocketAddressCounter(const sockaddr_storage* addr) {
+  addr_counts_[*addr]++;
 }
 
-void QuicSocket::DecrementSocketAddressCounter(const sockaddr* addr) {
-  auto it = addr_counts_.find(addr);
+void QuicSocket::DecrementSocketAddressCounter(const sockaddr_storage* addr) {
+  auto it = addr_counts_.find(*addr);
   if (it == std::end(addr_counts_))
     return;
   it->second--;
   // Remove the address if the counter reaches zero again.
   if (it->second == 0)
-    addr_counts_.erase(addr);
+    addr_counts_.erase(*addr);
 }
 
-size_t QuicSocket::GetCurrentSocketAddressCounter(const sockaddr* addr) {
-  auto it = addr_counts_.find(addr);
+size_t QuicSocket::GetCurrentSocketAddressCounter(const sockaddr_storage* addr) {
+  auto it = addr_counts_.find(*addr);
   if (it == std::end(addr_counts_))
     return 0;
   return it->second;

@@ -2050,7 +2050,7 @@ void QuicSession::RemoveFromSocket() {
     socket_->DisassociateCID(QuicCID(&cid));
 
   Debug(this, "Removed from the QuicSocket.");
-  socket_->RemoveSession(QuicCID(scid_), **GetRemoteAddress());
+  socket_->RemoveSession(QuicCID(scid_), GetRemoteAddress()->GetSockaddrStorage());
   socket_.reset();
 }
 

@@ -133,7 +133,7 @@ class QuicSocket : public AsyncWrap,
   int ReceiveStop();
   void RemoveSession(
       const QuicCID& cid,
-      const sockaddr* addr);
+      const sockaddr_storage* addr);
   void ReportSendError(
       int error);
   int SendPacket(
@@ -233,9 +233,9 @@ class QuicSocket : public AsyncWrap,
       const struct sockaddr* addr,
       unsigned int flags);
 
-  void IncrementSocketAddressCounter(const sockaddr* addr);
-  void DecrementSocketAddressCounter(const sockaddr* addr);
-  size_t GetCurrentSocketAddressCounter(const sockaddr* addr);
+  void IncrementSocketAddressCounter(const sockaddr_storage* addr);
+  void DecrementSocketAddressCounter(const sockaddr_storage* addr);
+  size_t GetCurrentSocketAddressCounter(const sockaddr_storage* addr);
 
   void IncrementPendingCallbacks() { pending_callbacks_++; }
   void DecrementPendingCallbacks() { pending_callbacks_--; }
@@ -315,7 +315,7 @@ class QuicSocket : public AsyncWrap,
   // value reaches the value of max_connections_per_host_,
   // attempts to create new connections will be ignored
   // until the value falls back below the limit.
-  std::unordered_map<const sockaddr*, size_t, SocketAddress::Hash,
+  std::unordered_map<const sockaddr_storage, size_t, SocketAddress::Hash,
       SocketAddress::Compare> addr_counts_;
 
   // The validated_addrs_ vector is used as an LRU cache for
