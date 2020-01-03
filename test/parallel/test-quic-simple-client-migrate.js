@@ -32,6 +32,16 @@ server.listen({ key, cert, ca, alpn: kALPN });
 server.on('session', common.mustCall((session) => {
   debug('QuicServerSession Created');
 
+  session.on('pathValidation', common.mustCall((result, local, remote) => {
+    assert.strictEqual(result, 'success');
+    assert.strictEqual(local.address, '0.0.0.0');
+    assert.strictEqual(local.family, 'IPv4');
+    assert.strictEqual(local.port, server.endpoints[0].address.port);
+    assert.strictEqual(remote.address, '127.0.0.1');
+    assert.strictEqual(remote.family, 'IPv4');
+    assert.strictEqual(remote.port, client2.endpoints[0].address.port);
+  }));
+
   session.on('stream', common.mustCall((stream) => {
     debug('Bidirectional, Client-initiated stream %d received', stream.id);
     stream.pipe(stream);

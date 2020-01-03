@@ -71,6 +71,16 @@ server.on('ready', common.mustCall(() => {
     servername: 'localhost',
   });
 
+  req.on('pathValidation', common.mustCall((result, local, remote) => {
+    assert.strictEqual(result, 'success');
+    assert.strictEqual(local.address, '0.0.0.0');
+    assert.strictEqual(local.family, 'IPv4');
+    assert.strictEqual(local.port, client.endpoints[0].address.port);
+    assert.strictEqual(remote.address, '0.0.0.0');
+    assert.strictEqual(remote.family, 'IPv4');
+    assert.strictEqual(remote.port, endpoint2.address.port);
+  }));
+
   req.on('ready', common.mustCall(() => {
     req.on('usePreferredAddress', common.mustCall(({address, port, type}) => {
       assert.strictEqual(address, '0.0.0.0');

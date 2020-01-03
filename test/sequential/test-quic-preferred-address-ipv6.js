@@ -35,7 +35,9 @@ const countdown = new Countdown(1, () => {
 
 server.listen({ key, cert, ca, alpn: kALPN, preferredAddress: {
   port: common.PORT,
-  address: '::',
+  // TODO(oyyd): Setting the `address` to `::` will make this test abort
+  // on macOS.
+  address: '::1',
   type: 'udp6',
 } });
 
@@ -75,9 +77,19 @@ server.on('ready', common.mustCall(() => {
     type: 'udp6',
   });
 
+  req.on('pathValidation', common.mustCall((result, local, remote) => {
+    assert.strictEqual(result, 'success');
+    assert.strictEqual(local.address, '::');
+    assert.strictEqual(local.family, 'IPv6');
+    assert.strictEqual(local.port, client.endpoints[0].address.port);
+    assert.strictEqual(remote.address, '::1');
+    assert.strictEqual(remote.family, 'IPv6');
+    assert.strictEqual(remote.port, endpoint2.address.port);
+  }));
+
   req.on('ready', common.mustCall(() => {
     req.on('usePreferredAddress', common.mustCall(({address, port, type}) => {
-      assert.strictEqual(address, '::');
+      assert.strictEqual(address, '::1');
       assert.strictEqual(port, common.PORT);
       assert.strictEqual(type, 'udp6');
     }));
